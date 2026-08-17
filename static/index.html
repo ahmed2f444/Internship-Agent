@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESCA HSE — AI Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #080f1c;
+            color: #E9EFF7;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 860px;
+            height: 92vh;
+            background: #0e1929;
+            border: 1px solid #1e3352;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        .header {
+            padding: 16px 24px;
+            background: #0a1422;
+            border-bottom: 1px solid #1e3352;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, #e03a3a, #9e1b32);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+        .header h2 { font-size: 15px; font-weight: 600; color: #fff; }
+        .header p  { font-size: 11px; color: #6b8aad; margin-top: 2px; }
+        .status-dot {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 11px; color: #38B87C;
+        }
+        .status-dot::before {
+            content: '';
+            width: 7px; height: 7px;
+            background: #38B87C;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* ── Messages ── */
+        .messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+        .messages::-webkit-scrollbar { width: 5px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: #1e3352; border-radius: 4px; }
+
+        .msg-wrapper { display: flex; flex-direction: column; }
+        .msg-wrapper.user  { align-items: flex-end; }
+        .msg-wrapper.agent { align-items: flex-start; }
+
+        .msg {
+            max-width: 78%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.65;
+            animation: fadeUp 0.2s ease;
+        }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+        .msg.user  { background: #9e1b32; color: #fff; border-bottom-right-radius: 4px; }
+        .msg.agent { background: #152234; border: 1px solid #1e3352; color: #d8e4f0; border-bottom-left-radius: 4px; }
+
+        /* Markdown styles inside agent messages */
+        .msg.agent h1,.msg.agent h2,.msg.agent h3 { margin: 8px 0 4px; color: #fff; }
+        .msg.agent p  { margin: 4px 0; }
+        .msg.agent ul,.msg.agent ol { padding-left: 20px; margin: 6px 0; }
+        .msg.agent li { margin: 3px 0; }
+        .msg.agent strong { color: #a8c8f0; }
+        .msg.agent code {
+            background: #0a1422; padding: 1px 5px; border-radius: 4px;
+            font-size: 12px; color: #38B87C; font-family: monospace;
+        }
+        .msg.agent pre {
+            background: #0a1422; padding: 10px; border-radius: 8px;
+            overflow-x: auto; margin: 8px 0; border: 1px solid #1e3352;
+        }
+        .msg.agent pre code { background: none; padding: 0; }
+
+        /* ── Typing indicator ── */
+        .typing-indicator { display: flex; align-items: center; gap: 5px; padding: 12px 16px; }
+        .typing-indicator span {
+            width: 7px; height: 7px; background: #4a6fa5;
+            border-radius: 50%; animation: bounce 1.2s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+        /* ── Input area ── */
+        .input-box {
+            padding: 16px 20px;
+            border-top: 1px solid #1e3352;
+            display: flex;
+            gap: 10px;
+            background: #0a1422;
+        }
+        #userInput {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #1e3352;
+            background: #0e1929;
+            color: #E9EFF7;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #userInput::placeholder { color: #4a6fa5; }
+        #userInput:focus { border-color: #3a6ea8; }
+
+        #sendBtn {
+            padding: 12px 22px;
+            background: linear-gradient(135deg, #c0243d, #9e1b32);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+        #sendBtn:hover  { opacity: 0.9; }
+        #sendBtn:active { transform: scale(0.97); }
+        #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">🛡️</div>
+            <div>
+                <h2>ESCA HSE Assistant</h2>
+                <p>AI-powered Health, Safety &amp; Environment</p>
+            </div>
+        </div>
+        <div class="status-dot">Live Data</div>
+    </div>
+
+    <div class="messages" id="chatBox">
+        <div class="msg-wrapper agent">
+            <div class="msg agent">
+                👋 Hello! I'm your ESCA HSE Assistant. I have live access to safety incidents, permits, risk register, PPE stock, sensor alerts, and more.<br><br>
+                Ask me anything — in English or Arabic!
+            </div>
+        </div>
+    </div>
+
+    <div class="input-box">
+        <input type="text" id="userInput" placeholder="Ask me anything… / اسألني أي شيء" 
+               onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }">
+        <button id="sendBtn" onclick="sendMessage()">Send ➤</button>
+    </div>
+</div>
+
+<script>
+let currentSessionId = null;
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+function renderMarkdown(text) {
+    // Use marked.js if available, otherwise plain text
+    if (typeof marked !== 'undefined') {
+        return marked.parse(text, { breaks: true });
+    }
+    return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
+function addMessage(role, content) {
+    const chatBox = document.getElementById('chatBox');
+    const wrapper = document.createElement('div');
+    wrapper.className = `msg-wrapper ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = `msg ${role}`;
+
+    if (role === 'agent') {
+        bubble.innerHTML = renderMarkdown(content);
+    } else {
+        bubble.textContent = content;
+    }
+    wrapper.appendChild(bubble);
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return wrapper;
+}
+
+function showTyping() {
+    const chatBox = document.getElementById('chatBox');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-wrapper agent';
+    wrapper.id = 'typing';
+    wrapper.innerHTML = `<div class="msg agent"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    chatBox.appendChild(wrapper);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+}
+
+async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage('user', text);
+    input.value = '';
+    input.disabled = true;
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+        const res = await fetch('/api/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: text, session_id: currentSessionId })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Server error ${res.status}`);
+        }
+
+        const data = await res.json();
+        currentSessionId = data.session_id;
+        removeTyping();
+        addMessage('agent', data.answer);
+
+    } catch (err) {
+        removeTyping();
+        addMessage('agent', `⚠️ Sorry, I couldn't reach the server. Please try again.\n\n_${err.message}_`);
+    }
+
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.focus();
+}
+</script>
+
+</body>
+</html>
